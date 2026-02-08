@@ -1,0 +1,74 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+using UnityEngine;
+
+public class interactionSystem : MonoBehaviour
+{
+    [Header("Interaction")]
+    public Transform holdpointTransform;           // your hand hold point
+    public Transform holdpointForGun;           // your hand hold point
+    public float interactionRange = 3f;
+
+    private FireHelper currentPickupTarget;        // what we can pickup right now
+    private Highlight    currentHighlighted;       // what is visually glowing right now
+
+    private void Update()
+    {
+        // ── Always do raycast for highlight ───────────────────────────────
+        Ray ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f));
+        Highlight newHighlightTarget = null;
+
+        if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
+        {
+            // Check for pickup (FireHelper)
+            FireHelper item = hit.collider.GetComponent<FireHelper>();
+            if (item != null && !item.isHeld && !item.hasBeenFired)   // ← add your conditions when it CAN be taken
+            {
+                currentPickupTarget = item;
+            }
+
+            // Check for highlight (any object with Highlight component)
+            Highlight hl = hit.collider.GetComponent<Highlight>();
+            if (hl != null)
+            {
+                newHighlightTarget = hl;
+            }
+        }
+
+        // ── Update highlight ──────────────────────────────────────────────
+        if (newHighlightTarget != currentHighlighted)
+        {
+            if (currentHighlighted != null)
+            {
+                currentHighlighted.ToggleHighlight(false);
+            }
+
+            if (newHighlightTarget != null)
+            {
+                newHighlightTarget.ToggleHighlight(true);
+            }
+
+            currentHighlighted = newHighlightTarget;
+        }
+
+        // ── Handle pickup input only when looking at valid item ──────────
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (currentPickupTarget != null)
+            {
+                currentPickupTarget.TryPickup(holdpointTransform, holdpointForGun);
+                // Optional: de-highlight immediately after pickup
+                if (currentHighlighted != null)
+                {
+                    currentHighlighted.ToggleHighlight(false);
+                    currentHighlighted = null;
+                }
+            }
+        }
+
+        // Optional: show UI prompt only when looking at something grabbable
+        // if (currentPickupTarget != null) → show "Press E to take"
+    }
+}
