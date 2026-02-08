@@ -4,19 +4,21 @@ using UnityEngine;
 
 using UnityEngine;
 
-public class interactionSystem : MonoBehaviour
+public class interactionSystem : StaticInstance<interactionSystem>
 {
     [Header("Interaction")]
     public Transform holdpointTransform;           // your hand hold point
     public Transform holdpointForGun;           // your hand hold point
     public float interactionRange = 3f;
-
+    public bool canIntereact = false;
+    
     private FireHelper currentPickupTarget;        // what we can pickup right now
     private Highlight    currentHighlighted;       // what is visually glowing right now
     private wood    currentWood;     
 
     private void Update()
     {
+        if(!canIntereact)  return;
         // ── Always do raycast for highlight ───────────────────────────────
         Ray ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f));
         Highlight newHighlightTarget = null;

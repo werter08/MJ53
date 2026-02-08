@@ -3,20 +3,32 @@ using System;
 using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 
 public class GameManager : StaticInstance<GameManager>
 {
     // public static event Action<GameState> OnBeforeStateChanged;
     // public static event Action<GameState> OnAfterStateChanged;
+    
+    
     public string rebornText = "Life is short... but not for us!";
+
+    public Volume globalVolume;
+    public AudioSource heardBeat;
+    private LiftGammaGain lgg;
+
     public GameObject gun; 
     public float timeChangeForce = 1;
     public DialogueManager DialogueManager;
     public ChooseManager ChooseManager;
     public GameState State { get; private set; }
     private Camera camera;
-    
+    public Camera secondCamera;
+
+
+    public CanvasGroup endCanvas;
     
     public GameObject npc1;
     public GameObject npc2;
@@ -37,7 +49,6 @@ public class GameManager : StaticInstance<GameManager>
     public Quaternion npc1Endrot;
     public Quaternion npc2Endrot;
     public Quaternion npc3Endrot;
-
     public Vector3 playerStartPos;
     public Quaternion playerStartrot; 
     public Vector3 playerEndPos;
@@ -55,7 +66,6 @@ public class GameManager : StaticInstance<GameManager>
         npc3Startrot = npc3.GetComponent<Transform>().rotation;
         
         camera = Camera.main;
-        ChangeState(GameState.reburnQuestions);
     }
 
     public void ChangeState(GameState newState)
@@ -76,7 +86,9 @@ public class GameManager : StaticInstance<GameManager>
             }
             case GameState.OpenWorld:
             {
-                DialogueManager.PlayDialogue(3, () => {
+                DialogueManager.PlayDialogue(3, () =>
+                {
+                    interactionSystem.Instance.canIntereact = true;
                     QuestManager.Instance.setQuest(Quests.getLampe);          
                     ThirdPersonController.Instance.ChangeSittingState(false);
                 });
@@ -85,28 +97,43 @@ public class GameManager : StaticInstance<GameManager>
 
             case GameState.truthOrDare:
             {
+                interactionSystem.Instance.canIntereact = true;
                 truthorDareHandle();
                 break;
             }
             
             case GameState.aboutToDie:
             {
+                interactionSystem.Instance.canIntereact = true;
                 aboutToDieHandle();
                 break;
             }
             case GameState.dieng:
             {
+                interactionSystem.Instance.canIntereact = true;
                 dieng();
                 break;
             }
             case GameState.reburn:
             {
+                interactionSystem.Instance.canIntereact = true;
                 reburnHandle();
                 break;
             }
             case GameState.reburnQuestions:
             {
+                interactionSystem.Instance.canIntereact = true;
                 rebornQuestions();
+                break;
+            }
+            
+            case GameState.end:
+            {
+                heardBeat.volume = 0;
+                interactionSystem.Instance.canIntereact = true;
+                endCanvas.gameObject.SetActive(true);
+                StartCoroutine(FadeCanvasGroup(endCanvas, 1));
+                AudioSystem.Instance.StopMusic();
                 break;
             }
         }
@@ -140,6 +167,7 @@ public class GameManager : StaticInstance<GameManager>
     {
         BonFIreVibeAudio.Instance.changeSoundTO(soundType.creepy);
         yield return Transactor.Instance.FadeIn();
+        secondCamera.gameObject.SetActive(true);
         camera.gameObject.SetActive(false);
         yield return Transactor.Instance.FadeOut();
 
@@ -154,6 +182,7 @@ public class GameManager : StaticInstance<GameManager>
         BonFIreVibeAudio.Instance.changeSoundTO(soundType.creepy);
         yield return Transactor.Instance.FadeIn();
         camera.gameObject.SetActive(true);
+        secondCamera.gameObject.SetActive(false);
         ThirdPersonController.Instance.endPos(playerStartPos, playerStartrot);
         yield return Transactor.Instance.FadeOut();
         DialogueManager.PlayDialogue(5, () =>
@@ -195,7 +224,6 @@ public class GameManager : StaticInstance<GameManager>
         
         ThirdPersonController.Instance.endPos(playerEndPos, playerEndrot);
         ThirdPersonController.Instance.CanWalk = true;
-        ThirdPersonController.Instance.JustCanMoveForverd = true;
         
         yield return Transactor.Instance.FadeOut();
 
@@ -241,7 +269,7 @@ public class GameManager : StaticInstance<GameManager>
 
         ThirdPersonController.Instance.endPos(playerReburnPos, playerReburnrot, true );
         
-        ThirdPersonController.Instance.JustCanMoveForverd = false;
+        // ThirdPersonController.Instance.JustCanMoveForverd = false;
         
         yield return Transactor.Instance.FadeOut();
 
@@ -252,14 +280,21 @@ public class GameManager : StaticInstance<GameManager>
     {
         ChooseManager.SetChoose(3, (b, i) =>
         {
+            ThirdPersonController.Instance.sprintAdittion += 4;
+
             ChooseManager.SetChoose(4, (b1, i1) =>
             {
-                ThirdPersonController.Instance.sprintAdittion += 4;
                 ChooseManager.SetChoose(5, (b2, i2) =>
                 {
                     gun.SetActive(true);
                     gun.transform.position = ThirdPersonController.Instance.transform.position + Vector3.up;
-                    AudioSystem.Instance.PlayFonk();
+                    if (globalVolume.profile.TryGet<LiftGammaGain>(out lgg))
+                    {
+                        // 1. Enable the component
+                        lgg.active = true;
+                        AudioSystem.Instance.PlayFonk();
+                    }
+                    heardBeat.volume = 1;
                 });
             });
         });
@@ -294,7 +329,27 @@ public class GameManager : StaticInstance<GameManager>
         if (QuestManager.Instance.currentQuest != null && QuestManager.Instance.currentQuest.guest == Quests.getAllOfThem)
             QuestManager.Instance.ifQuestIsThisThenQuestDone(Quests.getAllOfThem);
         yield return new WaitForSeconds(0.3f);
-        ChangeState(GameState.reburn);
+        ChangeState(GameState.end);
+    }
+    
+    private IEnumerator FadeCanvasGroup(CanvasGroup canvasGroup, float targetAlpha)
+    {
+        if (canvasGroup == null) yield break;
+
+        float startAlpha = canvasGroup.alpha;
+        float duration = Mathf.Abs(startAlpha - targetAlpha);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            canvasGroup.alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
+            yield return null; // better than fixed WaitForSeconds(0.01f)
+        }
+
+        // Ensure exact final value
+        canvasGroup.alpha = targetAlpha;
     }
 }
 
@@ -308,5 +363,6 @@ public enum GameState {
     aboutToDie = 5,
     dieng = 6,
     reburn = 7,
-    reburnQuestions = 8
+    reburnQuestions = 8,
+    end = 9
 }

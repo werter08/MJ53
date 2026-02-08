@@ -27,22 +27,16 @@ public class Highlight : MonoBehaviour
 
     public void ToggleHighlight(bool val)
     {
-        if (val)
+        foreach (var material in materials)
         {
-            foreach (var material in materials)
+            if (val)
             {
-                //We need to enable the EMISSION
                 material.EnableKeyword("_EMISSION");
-                //before we can set the color
                 material.SetColor("_EmissionColor", color);
             }
-        }
-        else
-        {
-            foreach (var material in materials)
+            else
             {
-                //we can just disable the EMISSION
-                //if we don't use emission color anywhere else
+                material.SetColor("_EmissionColor", Color.black);
                 material.DisableKeyword("_EMISSION");
             }
         }

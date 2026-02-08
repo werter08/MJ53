@@ -29,7 +29,7 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     private Vector3 verticalDirection = new Vector3();
     float jumpElapsedTime = 0;
     private float directionY = 0;
-    public bool JustCanMoveForverd = false;
+    // public bool JustCanMoveForverd = false;
     public bool CanWalk = false;
     public bool isSitting = false;
     // Player states
@@ -90,19 +90,19 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         }
         
         // Input checkers
-        if (JustCanMoveForverd)
-        {
-            inputVertical = Input.GetAxis("Vertical");
-            if(inputVertical < 0) {
-                inputVertical = 0;}
-        }
-        else
-        {
+        // if (JustCanMoveForverd)
+        // {
+        //     inputVertical = Input.GetAxis("Vertical");
+        //     if(inputVertical < 0) {
+        //         inputVertical = 0;}
+        // }
+        // else
+        // {
             inputVertical = Input.GetAxis("Vertical");
             inputHorizontal = Input.GetAxis("Horizontal");
             inputJump = Input.GetAxis("Jump") == 1f;
             inputSprint = Input.GetAxis("Fire3") == 1f;
-        }
+        // }
 
         // Check if you pressed the crouch input key and change the player's state
         inputCrouch = Input.GetKeyDown(KeyCode.LeftControl); // 🔥 Fixed: was using uninitialized bool

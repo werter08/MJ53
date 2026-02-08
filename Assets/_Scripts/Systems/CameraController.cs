@@ -1,29 +1,26 @@
-﻿
-using UnityEngine;
+﻿using UnityEngine;
 
-/*
-    This file has a commented version with details about how each line works. 
-    The commented version contains code that is easier and simpler to read. This file is minified.
-*/
-
-/// <summary>
-/// Camera movement script for third person games.
-/// This Script should not be applied to the camera! It is attached to an empty object and inside
-/// it (as a child object) should be your game's MainCamera.
-/// </summary>
 public class CameraController : StaticInstance<CameraController>
 {
-
     [Tooltip("Enable to move the camera by holding the right mouse button. Does not work with joysticks.")]
     public bool clickToMoveCamera = false;
+
     [Tooltip("Enable zoom in/out when scrolling the mouse wheel. Does not work with joysticks.")]
     public bool canZoom = false;
-    [Space]
-    [Tooltip("The higher it is, the faster the camera moves. It is recommended to increase this value for games that uses joystick.")]
-    public float sensitivity = 5f;
 
-    [Tooltip("Camera Y rotation limits. The X axis is the maximum it can go up and the Y axis is the maximum it can go down.")]
-    public Vector2 cameraLimit = new Vector2(-45, 40);
+    [Space]
+    [Tooltip("The higher it is, the faster the camera moves. Recommended to increase for joystick games.")]
+    public float sensitivity = 3f;
+
+    [Tooltip("Camera vertical rotation limits (X = min up, Y = max down)")]
+    public Vector2 cameraLimit = new Vector2(-45f, 40f);
+
+    [Tooltip("When true → use arrow keys (←→↑↓) instead of mouse for rotation")]
+    public bool useArrows = false;
+
+    [Space]
+    [Tooltip("Optional: min/max field of view when zooming")]
+    public Vector2 fovLimits = new Vector2(20f, 100f);
 
     float mouseX;
     float mouseY;
@@ -33,44 +30,81 @@ public class CameraController : StaticInstance<CameraController>
 
     void Awake()
     {
+        base.Awake();
+        player = GameObject.FindWithTag("Player")?.transform;
 
-        player = GameObject.FindWithTag("Player").transform;
-        offsetDistanceY = transform.position.y;
-
-        // Lock and hide cursor with option isn't checked
-        if ( ! clickToMoveCamera )
+        if (player == null)
         {
-            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-            UnityEngine.Cursor.visible = false;
+            Debug.LogWarning("CameraController: No GameObject with tag 'Player' found!");
         }
 
-    }
+        offsetDistanceY = transform.position.y - (player != null ? player.position.y : 0f);
 
+        // Lock and hide cursor only when using mouse look
+        if (!useArrows && !clickToMoveCamera)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+    }
 
     void Update()
     {
+        if (player == null) return;
 
-        // Follow player - camera offset
-        transform.position = player.position + new Vector3(0, offsetDistanceY, 0);
+        // Skip input if right-click mode is enabled but not holding RMB
+        if (clickToMoveCamera && Input.GetAxisRaw("Fire2") <= 0f)
+            return;
 
-        // Set camera zoom when mouse wheel is scrolled
-        if( canZoom && Input.GetAxis("Mouse ScrollWheel") != 0 )
-            Camera.main.fieldOfView -= Input.GetAxis("Mouse ScrollWheel") * sensitivity * 2;
-        // You can use Mathf.Clamp to set limits on the field of view
+        if (useArrows)
+        {
+            // Only arrow keys – no WASD
+            float horizontal = Input.GetKey(KeyCode.RightArrow) ? 1f :
+                               Input.GetKey(KeyCode.LeftArrow)  ? -1f : 0f;
 
-        // Checker for right click to move camera
-        if ( clickToMoveCamera )
-            if (Input.GetAxisRaw("Fire2") == 0)
-                return;
-            
-        // Calculate new position
-        mouseX += Input.GetAxis("Mouse X") * sensitivity;
-        mouseY += Input.GetAxis("Mouse Y") * sensitivity;
-        // Apply camera limts
+            float vertical =   Input.GetKey(KeyCode.UpArrow)   ? 1f :
+                               Input.GetKey(KeyCode.DownArrow) ? -1f : 0f;
+
+            // Scale with time so it feels smooth and roughly mouse-like
+            mouseX += horizontal * sensitivity * 80f * Time.deltaTime;
+            mouseY += vertical   * sensitivity * 60f * Time.deltaTime;  // vertical usually slower
+        }
+        else
+        {
+            // Original mouse look
+            mouseX += Input.GetAxis("Mouse X") * sensitivity;
+            mouseY += Input.GetAxis("Mouse Y") * sensitivity;
+        }
+
+        // Always clamp vertical angle
         mouseY = Mathf.Clamp(mouseY, cameraLimit.x, cameraLimit.y);
-
-        transform.rotation = Quaternion.Euler(-mouseY, mouseX, 0);
-
     }
 
+    void FixedUpdate()
+    {
+        if (player == null) return;
+
+        // Follow player – only vertical offset
+        transform.position = player.position + new Vector3(0, offsetDistanceY, 0);
+
+        // Zoom (with limits)
+        if (canZoom)
+        {
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            if (scroll != 0f)
+            {
+                Camera.main.fieldOfView -= scroll * sensitivity * 40f;
+                Camera.main.fieldOfView = Mathf.Clamp(Camera.main.fieldOfView, fovLimits.x, fovLimits.y);
+            }
+        }
+
+        // Apply rotation
+        transform.rotation = Quaternion.Euler(-mouseY, mouseX, 0f);
+    }
+
+    void OnDisable()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
 }
