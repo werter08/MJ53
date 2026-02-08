@@ -11,13 +11,13 @@ using UnityEngine;
 /// This Script should not be applied to the camera! It is attached to an empty object and inside
 /// it (as a child object) should be your game's MainCamera.
 /// </summary>
-public class CameraController : MonoBehaviour
+public class CameraController : StaticInstance<CameraController>
 {
 
     [Tooltip("Enable to move the camera by holding the right mouse button. Does not work with joysticks.")]
     public bool clickToMoveCamera = false;
     [Tooltip("Enable zoom in/out when scrolling the mouse wheel. Does not work with joysticks.")]
-    public bool canZoom = true;
+    public bool canZoom = false;
     [Space]
     [Tooltip("The higher it is, the faster the camera moves. It is recommended to increase this value for games that uses joystick.")]
     public float sensitivity = 5f;
@@ -27,11 +27,11 @@ public class CameraController : MonoBehaviour
 
     float mouseX;
     float mouseY;
-    float offsetDistanceY;
+    public float offsetDistanceY;
 
     Transform player;
 
-    void Start()
+    void Awake()
     {
 
         player = GameObject.FindWithTag("Player").transform;
@@ -72,4 +72,5 @@ public class CameraController : MonoBehaviour
         transform.rotation = Quaternion.Euler(-mouseY, mouseX, 0);
 
     }
+
 }

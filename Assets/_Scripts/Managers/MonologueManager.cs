@@ -63,12 +63,12 @@ public class MonologueManager : MonoBehaviour
 
     private IEnumerator FadeOutAndDestroy()
     {
+        GameManager.Instance.ChangeState(GameState.firstDialogue);
         // Fade out main monologue canvas
         yield return FadeCanvasGroup(monologueCanvasGroup, targetAlpha: 0f);
 
         // Optional delay before destruction
         yield return new WaitForSeconds(waitBeforeDestroy);
-
         Destroy(gameObject);
     }
 

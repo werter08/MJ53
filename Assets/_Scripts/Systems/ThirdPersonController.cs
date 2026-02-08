@@ -28,7 +28,9 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     public float gravity = 9.8f;
 
     float jumpElapsedTime = 0;
-
+    public bool JustCanMoveForverd = false;
+    public bool CanWalk = false;
+    public bool isSitting = false;
     // Player states
     bool isJumping = false;
     bool isSprinting = false;
@@ -40,17 +42,42 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     bool inputJump;
     bool inputCrouch;
     bool inputSprint;
-
     
     Animator animator;
     CharacterController cc;
+    Camera cam;
+    
+    private Vector3 startPosition;
+    private Quaternion startRotation;
+    
+    void Awake()       
+    {
+        startPosition = transform.position;
+        startRotation = transform.rotation;
+        base.Awake();
+    }
 
-
+    public void StartPos(bool canMove=false)
+    {
+        ChangeSittingState(true);
+        transform.position = startPosition;
+        transform.rotation = startRotation;
+        CanWalk = canMove;
+    }
+    
+    public void endPos( Vector3 endPos, Quaternion endRot, bool canMove=false)
+    {
+        ChangeSittingState(false);
+        transform.position = endPos;
+        transform.rotation = endRot;
+        CanWalk = canMove;
+    }
+    
     void Start()
     {
         cc = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
-
+    cam = Camera.main;
         // Message informing the user that they forgot to add an animator
         if (animator == null)
             Debug.LogWarning("Hey buddy, you don't have the Animator component in your player. Without it, the animations won't work.");
@@ -60,14 +87,21 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     // Update is only being used here to identify keys and trigger animations
     void Update()
     {
-
+        if (!CanWalk) { return;}
         // Input checkers
-        inputHorizontal = Input.GetAxis("Horizontal");
-        inputVertical = Input.GetAxis("Vertical");
-        inputJump = Input.GetAxis("Jump") == 1f;
-        inputSprint = Input.GetAxis("Fire3") == 1f;
-        // Unfortunately GetAxis does not work with GetKeyDown, so inputs must be taken individually
-        inputCrouch = Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.JoystickButton1);
+        if (JustCanMoveForverd)
+        {
+            inputVertical = Input.GetAxis("Vertical");
+            if(inputVertical < 0) {
+                inputVertical = 0;}
+        }
+        else
+        {
+            inputVertical = Input.GetAxis("Vertical");
+            inputHorizontal = Input.GetAxis("Horizontal");
+            inputJump = Input.GetAxis("Jump") == 1f;
+            inputSprint = Input.GetAxis("Fire3") == 1f;
+        }
 
         // Check if you pressed the crouch input key and change the player's state
         if ( inputCrouch )
@@ -147,9 +181,8 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
 
         
         // --- Character rotation --- 
-
-        Vector3 forward = Camera.main.transform.forward;
-        Vector3 right = Camera.main.transform.right;
+        Vector3 forward = cam.transform.forward;
+        Vector3 right = cam.transform.right;
 
         forward.y = 0;
         right.y = 0;
@@ -198,5 +231,13 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     }
 
     public bool isMoving() => Mathf.Abs(inputHorizontal) + Mathf.Abs(inputVertical) > 0.1f;
+
+    public void ChangeSittingState(bool isOn)
+    {
+        isSitting = isOn;
+        if (isSitting) { animator.SetBool("sit", isSitting);}
+        FindObjectOfType<CameraController>().offsetDistanceY = isOn ? 1f : 2f;
+    }
+
 
 }

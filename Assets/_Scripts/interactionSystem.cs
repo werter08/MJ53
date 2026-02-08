@@ -13,6 +13,7 @@ public class interactionSystem : MonoBehaviour
 
     private FireHelper currentPickupTarget;        // what we can pickup right now
     private Highlight    currentHighlighted;       // what is visually glowing right now
+    private wood    currentWood;     
 
     private void Update()
     {
@@ -34,6 +35,12 @@ public class interactionSystem : MonoBehaviour
             if (hl != null)
             {
                 newHighlightTarget = hl;
+            }
+            
+            wood w = hit.collider.GetComponent<wood>();
+            if (w != null)
+            {
+                currentWood = w;
             }
         }
 
@@ -59,6 +66,8 @@ public class interactionSystem : MonoBehaviour
             if (currentPickupTarget != null)
             {
                 currentPickupTarget.TryPickup(holdpointTransform, holdpointForGun);
+                currentPickupTarget = null;
+
                 // Optional: de-highlight immediately after pickup
                 if (currentHighlighted != null)
                 {
@@ -66,7 +75,14 @@ public class interactionSystem : MonoBehaviour
                     currentHighlighted = null;
                 }
             }
+
+            if (currentWood != null)
+            {
+                currentWood.TryPickup();
+                currentWood = null;
+            }
         }
+        
 
         // Optional: show UI prompt only when looking at something grabbable
         // if (currentPickupTarget != null) → show "Press E to take"

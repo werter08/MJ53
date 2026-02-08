@@ -104,7 +104,7 @@ public class AudioSystem : StaticInstance<AudioSystem> {
     }
 
   
-    public void PlayGrabSound(float vol = 0.6f, float pitch = 1)
+    public void PlayGrabSound(float vol = 0.3f, float pitch = 1)
     {
         
         pitch = Random.Range(0.8f, 1.2f); 
@@ -113,7 +113,7 @@ public class AudioSystem : StaticInstance<AudioSystem> {
         _soundsSource.pitch = 1;
     }
     
-    public void PlaySuccessSound(float vol = 0.6f, float pitch = 1)
+    public void PlaySuccessSound(float vol = 0.3f, float pitch = 1)
     {
         
         pitch = Random.Range(0.8f, 1.2f); 
