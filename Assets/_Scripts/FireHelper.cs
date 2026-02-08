@@ -7,6 +7,11 @@ public class FireHelper : MonoBehaviour
     public bool isGun = false;
     public Light flameLight;
     public ParticleSystem flameParticles;
+    [Header("Gun shooting")]
+    public ParticleSystem shootParticles; // Muzzle flash / smoke – assign in inspector
+    public float shootRange = 50f;
+    public float shootCooldown = 0.6f;   // Prevents double-firing
+    private float _lastShootTime = -999f;
 
     public bool isHeld = false;
     public bool hasBeenFired = false;
@@ -48,7 +53,9 @@ public class FireHelper : MonoBehaviour
             Debug.LogError("TryPickup: holdPoint is NULL!");
             return;
         }
-        holdPoint = isGun ? holdPointForGun : newHoldPoint;
+        bool isGunItem = isGun || gameObject.name.IndexOf("gun", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        // Gun uses holdPointForGun; fallback to main hold point if not set
+        holdPoint = isGunItem ? (holdPointForGun != null ? holdPointForGun : newHoldPoint) : newHoldPoint;
         isHeld = true;
 
         rb.isKinematic = true;
@@ -61,28 +68,61 @@ public class FireHelper : MonoBehaviour
         transform.SetParent(holdPoint);          // ← parenting is often more stable than lerp
         transform.localPosition = Vector3.zero;
         transform.localRotation = Quaternion.identity;
-    AudioSystem.Instance.PlayGrabSound();
-        QuestManager.Instance.ifQuestIsThisThenQuestDone(Quests.getLampe);
-
+        AudioSystem.Instance.PlayGrabSound();
+        if (isGunItem && QuestManager.Instance != null)
+            QuestManager.Instance.setQuest(Quests.getAllOfThem);
+        else if (!isGunItem && QuestManager.Instance != null)
+            QuestManager.Instance.ifQuestIsThisThenQuestDone(Quests.getLampe);
     }
 
     private void Update()
     {
-        if (isHeld)
+        if (!isHeld) return;
+
+        if (Input.GetKeyDown(KeyCode.Q))
         {
-            if (Input.GetKeyDown(KeyCode.Q))
+            Drop();
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            bool treatAsGun = isGun || gameObject.name.IndexOf("gun", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            if (treatAsGun)
             {
-                Drop();
+                if (Time.time - _lastShootTime < shootCooldown)
+                    return;
+                _lastShootTime = Time.time;
+                if (GameManager.Instance != null && GameManager.Instance.AllNpcsDead())
+                    GameManager.Instance.PlayerSuicide();
+                else
+                    Shoot();
             }
-            else if (Input.GetKeyDown(KeyCode.R))
+            else
             {
                 if (hasBeenFired)
-                {
                     deIgnitate();
-                } else {
+                else
                     Ignite();
-                }
             }
+        }
+    }
+
+    private void Shoot()
+    {
+        if (AudioSystem.Instance != null)
+            AudioSystem.Instance.PlayShotgunSound();
+        if (shootParticles != null)
+            shootParticles.Play();
+
+        Camera cam = Camera.main;
+        if (cam == null) return;
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, shootRange))
+        {
+            NpcKillable npc = hit.collider.GetComponentInParent<NpcKillable>();
+            if (npc != null)
+                npc.Kill();
         }
     }
 

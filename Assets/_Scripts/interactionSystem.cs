@@ -20,12 +20,14 @@ public class interactionSystem : MonoBehaviour
         // ── Always do raycast for highlight ───────────────────────────────
         Ray ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f));
         Highlight newHighlightTarget = null;
+        currentPickupTarget = null;  // clear until we hit something grabbable
+        currentWood = null;
 
         if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
         {
-            // Check for pickup (FireHelper)
+            // Check for pickup (FireHelper) – gun can be picked up too (!hasBeenFired is for lamp)
             FireHelper item = hit.collider.GetComponent<FireHelper>();
-            if (item != null && !item.isHeld && !item.hasBeenFired)   // ← add your conditions when it CAN be taken
+            if (item != null && !item.isHeld && (!item.hasBeenFired || item.isGun))
             {
                 currentPickupTarget = item;
             }

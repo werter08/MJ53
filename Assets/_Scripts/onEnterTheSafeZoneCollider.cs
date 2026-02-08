@@ -12,6 +12,7 @@ public class onEnterTheSafeZoneCollider : MonoBehaviour
 
         if(other.CompareTag("Player"))
         {
+            if (QuestManager.Instance.currentQuest == null) return;
             if (QuestManager.Instance.currentQuest.guest == Quests.getToBase) {
                 QuestManager.Instance.ifQuestIsThisThenQuestDone(Quests.getToBase);
                 GameManager.Instance.ChangeState(GameState.truthOrDare);

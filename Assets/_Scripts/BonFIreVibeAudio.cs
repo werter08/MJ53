@@ -32,7 +32,7 @@ public class BonFIreVibeAudio : StaticInstance<BonFIreVibeAudio>
         }
         
         if (currentClip == targetClip) return;
-
+        
         currentClip = targetClip;
         audioSource.clip = currentClip;
         audioSource.Play();

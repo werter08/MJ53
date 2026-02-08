@@ -14,8 +14,7 @@ using UnityEngine;
 /// </summary>
 public class ThirdPersonController : Singleton<ThirdPersonController>
 {
-
-    [Tooltip("Speed ​​at which the character moves. It is not affected by gravity or jumping.")]
+    [Tooltip("Speed at which the character moves. It is not affected by gravity or jumping.")]
     public float velocity = 5f;
     [Tooltip("This value is added to the speed value while the character is sprinting.")]
     public float sprintAdittion = 3.5f;
@@ -27,7 +26,9 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     [Tooltip("Force that pulls the player down. Changing this value causes all movement, jumping and falling to be changed as well.")]
     public float gravity = 9.8f;
 
+    private Vector3 verticalDirection = new Vector3();
     float jumpElapsedTime = 0;
+    private float directionY = 0;
     public bool JustCanMoveForverd = false;
     public bool CanWalk = false;
     public bool isSitting = false;
@@ -47,47 +48,47 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     CharacterController cc;
     Camera cam;
     
-    private Vector3 startPosition;
-    private Quaternion startRotation;
-    
-    void Awake()       
-    {
-        startPosition = transform.position;
-        startRotation = transform.rotation;
-        base.Awake();
-    }
-
-    public void StartPos(bool canMove=false)
-    {
-        ChangeSittingState(true);
-        transform.position = startPosition;
-        transform.rotation = startRotation;
-        CanWalk = canMove;
-    }
-    
     public void endPos( Vector3 endPos, Quaternion endRot, bool canMove=false)
     {
         ChangeSittingState(false);
+        
+        // 🔥 FIXED TELEPORT: Disable CC → Set pos/rot → Re-enable
+        cc.enabled = false;
         transform.position = endPos;
         transform.rotation = endRot;
+        cc.enabled = true;
+        
+        // Lock movement & reset inputs (no drift)
         CanWalk = canMove;
+        ResetInputs();
+        
+        // Reset jump state (prevents mid-air glitches)
+        isJumping = false;
+        jumpElapsedTime = 0;
     }
-    
-    void Start()
+
+    protected override void Awake()
     {
+        base.Awake();
         cc = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
-    cam = Camera.main;
-        // Message informing the user that they forgot to add an animator
+        cam = Camera.main;
+
         if (animator == null)
             Debug.LogWarning("Hey buddy, you don't have the Animator component in your player. Without it, the animations won't work.");
     }
 
-
     // Update is only being used here to identify keys and trigger animations
     void Update()
     {
-        if (!CanWalk) { return;}
+        // 🔥 ALWAYS reset inputs first for safety
+        ResetInputs();
+        
+        if (!CanWalk || isSitting) 
+        { 
+            return; // Full lock: no inputs, no anims
+        }
+        
         // Input checkers
         if (JustCanMoveForverd)
         {
@@ -104,6 +105,7 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         }
 
         // Check if you pressed the crouch input key and change the player's state
+        inputCrouch = Input.GetKeyDown(KeyCode.LeftControl); // 🔥 Fixed: was using uninitialized bool
         if ( inputCrouch )
             isCrouching = !isCrouching;
 
@@ -111,7 +113,6 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         // If dont have animator component, this block wont run
         if ( cc.isGrounded && animator != null )
         {
-
             // Crouch
             // Note: The crouch animation does not shrink the character's collider
             animator.SetBool("crouch", isCrouching);
@@ -139,13 +140,30 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         }
 
         HeadHittingDetect();
-
     }
 
+    // 🔥 NEW: Zero out inputs to prevent ghost movement
+    void ResetInputs()
+    {
+        inputHorizontal = 0f;
+        inputVertical = 0f;
+        inputJump = false;
+        inputCrouch = false;
+        inputSprint = false;
+    }
 
     // With the inputs and animations defined, FixedUpdate is responsible for applying movements and actions to the player
     private void FixedUpdate()
     {
+        // 🔥 CRITICAL FIX: Lock ALL movement when !CanWalk || sitting
+        if (!CanWalk || isSitting)
+        {
+            // Still apply gravity (no falling through floor on teleport/sit)
+             directionY = -gravity * Time.deltaTime;
+             this.verticalDirection = Vector3.up * directionY;
+            cc.Move(verticalDirection);
+            return;
+        }
 
         // Sprinting velocity boost or crounching desacelerate
         float velocityAdittion = 0;
@@ -157,12 +175,11 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         // Direction movement
         float directionX = inputHorizontal * (velocity + velocityAdittion) * Time.deltaTime;
         float directionZ = inputVertical * (velocity + velocityAdittion) * Time.deltaTime;
-        float directionY = 0;
+        directionY = 0;
 
         // Jump handler
         if ( isJumping )
         {
-
             // Apply inertia and smoothness when climbing the jump
             // It is not necessary when descending, as gravity itself will gradually pulls
             directionY = Mathf.SmoothStep(jumpForce, jumpForce * 0.30f, jumpElapsedTime / jumpTime) * Time.deltaTime;
@@ -204,14 +221,12 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
         // --- End rotation ---
 
         
-        Vector3 verticalDirection = Vector3.up * directionY;
+         verticalDirection = Vector3.up * directionY;
         Vector3 horizontalDirection = forward + right;
 
         Vector3 moviment = verticalDirection + horizontalDirection;
         cc.Move( moviment );
-
     }
-
 
     //This function makes the character end his jump if he hits his head on something
     void HeadHittingDetect()
@@ -235,9 +250,9 @@ public class ThirdPersonController : Singleton<ThirdPersonController>
     public void ChangeSittingState(bool isOn)
     {
         isSitting = isOn;
-        if (isSitting) { animator.SetBool("sit", isSitting);}
-        FindObjectOfType<CameraController>().offsetDistanceY = isOn ? 1f : 2f;
+        if (animator != null) animator.SetBool("sit", isSitting);
+        if (Camera.main != null) FindObjectOfType<CameraController>().offsetDistanceY = isOn ? 1f : 2f;
+        // 🔥 Auto-lock walk when sitting
+        if (isOn) CanWalk = false;
     }
-
-
 }

@@ -1,13 +1,14 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Febucci.UI.Core;
 using UnityEngine;
 
 public class Transactor : Singleton<Transactor>
 {
     float fadeSpeed = 2f;
     public CanvasGroup canvasGroup;
-
+    public TypewriterCore typo;
 
 
 
@@ -19,6 +20,11 @@ public class Transactor : Singleton<Transactor>
     public IEnumerator FadeIn()
     {
         yield return  FadeCanvasGroup(canvasGroup, 1);
+    }
+
+    public void ShowText(string text)
+    {
+        typo.ShowText(text);
     }
 
     private IEnumerator FadeCanvasGroup(CanvasGroup canvasGroup, float targetAlpha)
